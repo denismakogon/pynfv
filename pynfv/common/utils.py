@@ -19,6 +19,12 @@ import re
 import six
 import time
 
+try:
+    import simplejson as json
+except ImportError:
+    import json
+
+
 HWADDR = r'(?:[a-zA-Z0-9]{2}:){5}[a-zA-Z0-9]{2}'
 IPv4_ADDR = r'(?:\d+\.){3}\d+'
 EMPTY_LINE = re.compile(r'^\s+$')

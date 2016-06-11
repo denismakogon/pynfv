@@ -15,21 +15,32 @@
 
 import functools
 import requests
-import logging
 
-LOG = logging.getLogger(__name__)
+from pynfv.common import logger as pynfv_logger
+from pynfv.common import exceptions
+from pynfv.common import utils
 
 
 def api_task(action):
     @functools.wraps(action)
     def wraps(*args, **kwargs):
+        self = list(args)[0]
+        self.logger.info("Executing action {0}. Pos-args: {1}. Kwargs: {2}."
+                         .format(action.__name__, str(args), str(kwargs)))
         action_response = action(*args, **kwargs)
-        try:
-            action_response.rise_for_status()
-        except requests.HTTPError as ex:
-            LOG.exception("%s. %s." % (action_response.text, str(ex)))
-        else:
-            return action_response
+        self.logger.debug("Response.text {0}."
+                          .format(str(action_response.text)))
+        self.logger.debug("Response.content {0}."
+                          .format(str(action_response.content)))
+        self.logger.debug("Response.headers {0}."
+                          .format(str(action_response.headers)))
+        if not exceptions.client_exceptions.is_not_raisable(
+                action_response.status_code):
+            self.logger.info("Resulting JSON response: {0}."
+                             .format(action_response.text))
+            return utils.json.loads(action_response.text)
+        exceptions.client_exceptions.raise_from_code(
+            action_response.status_code, action_response.text)
     return wraps
 
 
@@ -39,6 +50,8 @@ class RESTconfResourceClient(object):
     __default_request_timeout = 60
 
     def __init__(self, user, password, host, **kwargs):
+        if 'logger' not in kwargs:
+            self.logger = pynfv_logger.setup_logging(__name__)
         self.host = host
         self.auth = (user, password) if not kwargs.get(
             'skip_auth', False) else None
@@ -66,9 +79,6 @@ class RESTconfResourceClient(object):
     def _request(self, method, urlpath='', data=None):
         headers = {'Content-Type': 'application/json'}
         url = '/'.join([self.host, urlpath])
-        LOG.debug(
-            "Sending METHOD (%(method)s) URL (%(url)s) JSON (%(data)s)",
-            {'method': method, 'url': url, 'data': data})
         return requests.request(
             method, url=url, headers=headers, data=data,
             auth=self.auth,

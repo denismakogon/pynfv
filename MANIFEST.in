@@ -3,7 +3,4 @@ include ChangeLog
 exclude .gitignore
 exclude .gitreview
 
-include laos/db/sqlalchemy/alembic.ini
-include laos/db/sqlalchemy/alembic/script.py.mako
-
 global-exclude *.pyc
